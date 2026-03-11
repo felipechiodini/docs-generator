@@ -1,0 +1,16 @@
+{
+    "name": "felipe-bona/docs-generator",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "FelipeBona\\DocsGenerator\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Felipe Bona",
+            "email": "felipechiodinibona@hotmail.com"
+        }
+    ],
+    "require": {}
+}

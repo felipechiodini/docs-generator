@@ -1,0 +1,83 @@
+name: Generate Docs with Gemini
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install axios
+
+      - name: Generate documentation
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          node << 'EOF'
+          const fs = require("fs");
+          const axios = require("axios");
+
+          const apiKey = process.env.GEMINI_API_KEY;
+
+          const codeFiles = fs.readdirSync("src")
+            .filter(f => f.endsWith(".js") || f.endsWith(".ts") || f.endsWith(".php"))
+            .map(f => fs.readFileSync("src/" + f, "utf8"))
+            .join("\n");
+
+          const prompt = `
+          Analyze this project code and generate developer documentation
+          in Markdown for a Docusaurus documentation site.
+
+          Include:
+          - architecture overview
+          - explanation of main modules
+          - examples of usage
+
+          Code:
+          ${codeFiles}
+          `;
+
+          axios.post(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey,
+            {
+              contents: [
+                {
+                  parts: [{ text: prompt }]
+                }
+              ]
+            }
+          ).then(res => {
+
+            const text = res.data.candidates[0].content.parts[0].text;
+
+            fs.writeFileSync("docs/architecture.md", text);
+
+          }).catch(err => {
+            console.error(err.response?.data || err.message);
+            process.exit(1);
+          });
+          EOF
+
+      - name: Commit docs
+        run: |
+          git config --global user.name "docs-bot"
+          git config --global user.email "bot@example.com"
+          git add docs
+          git commit -m "docs: auto update documentation" || echo "no changes"
+          git push
